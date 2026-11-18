@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chemistry Lab Calculator</title>
+<style>
+:root{--bg:#f4f7fb;--card:#fff;--tx:#1b2733;--mu:#5d6b79;--ac:#1f4e79;--bd:#d5dde6;--ok:#eaf3ea;--er:#fbeaea}
+@media(prefers-color-scheme:dark){:root{--bg:#12181f;--card:#1b242d;--tx:#e6edf3;--mu:#98a6b3;--ac:#5aa0d8;--bd:#2f3b47;--ok:#1c2f22;--er:#3a2222}}
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--tx)}
+header{background:var(--ac);color:#fff;padding:16px;text-align:center}
+header h1{margin:0;font-size:20px}header p{margin:4px 0 0;font-size:13px;opacity:.9}
+main{max-width:720px;margin:0 auto;padding:12px}
+nav{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+nav button{flex:1 1 auto;padding:10px;border:1px solid var(--bd);background:var(--card);color:var(--tx);border-radius:8px;font-size:14px;cursor:pointer}
+nav button.on{background:var(--ac);color:#fff;border-color:var(--ac)}
+details{background:var(--card);border:1px solid var(--bd);border-radius:8px;margin-bottom:8px}
+summary{padding:12px;font-weight:bold;cursor:pointer}
+form{padding:0 12px 12px}
+label{display:block;font-size:13px;color:var(--mu);margin:8px 0 3px}
+input,textarea{width:100%;padding:9px;border:1px solid var(--bd);border-radius:6px;background:var(--bg);color:var(--tx);font-size:15px;font-family:inherit}
+textarea{min-height:64px}
+.go{margin-top:12px;padding:10px 18px;background:var(--ac);color:#fff;border:0;border-radius:6px;font-size:15px;cursor:pointer}
+.out{margin-top:10px;padding:10px;border-radius:6px;background:var(--ok);font-size:15px;line-height:1.6}
+.out.err{background:var(--er)}
+.out:empty{display:none}
+.hi{background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:10px;margin-top:8px;font-size:14px;line-height:1.5}.hi small{color:var(--mu)}.hb{display:flex;gap:8px;flex-wrap:wrap}
+
+:root[data-theme=light]{--bg:#f4f7fb;--card:#fff;--tx:#1b2733;--mu:#5d6b79;--ac:#1f4e79;--bd:#d5dde6;--ok:#eaf3ea;--er:#fbeaea}
+:root[data-theme=dark]{--bg:#12181f;--card:#1b242d;--tx:#e6edf3;--mu:#98a6b3;--ac:#5aa0d8;--bd:#2f3b47;--ok:#1c2f22;--er:#3a2222}
+main{padding:12px 12px 84px}
+#nav{position:fixed;left:0;right:0;bottom:0;margin:0;gap:0;background:var(--card);border-top:1px solid var(--bd);z-index:9}
+#nav button{border:0;border-radius:0;background:none;padding:8px 2px;font-size:11px;color:var(--mu)}
+#nav button.on{color:var(--ac);font-weight:bold;background:none}
+.sr{width:100%;padding:10px;margin:6px 0;border:1px solid var(--bd);border-radius:6px;background:var(--card);color:var(--tx);font-size:15px}
+.bar{display:flex;align-items:center;gap:10px}.bar h2{margin:0;font-size:18px}
+.bk{border:1px solid var(--bd);background:var(--card);color:var(--tx);border-radius:6px;padding:8px 10px;cursor:pointer}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-top:8px}
+.tile{display:flex;flex-direction:column;gap:3px;text-align:left;padding:14px;background:var(--card);color:var(--tx);border:1px solid var(--bd);border-radius:10px;cursor:pointer;font-size:14px}
+.tile span{font-size:24px}.tile small{color:var(--mu)}
+.det{background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:8px 12px;margin:6px 0;font-size:14px}
+.det h3{margin:4px 0}.det table{width:100%;border-collapse:collapse}.det td{padding:3px 0;border-top:1px solid var(--bd)}.det td:first-child{color:var(--mu);width:46%}
+.ptw{overflow-x:auto;padding-bottom:6px}
+.pt{display:grid;grid-template-columns:repeat(18,40px);grid-auto-rows:46px;gap:2px;width:max-content}
+.el{color:#111;border-radius:4px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:13px;cursor:pointer;line-height:1.15}
+.el small{font-size:9px}.ph{background:var(--bd);color:var(--mu);font-size:9px;cursor:default}
+footer{text-align:center;color:var(--mu);font-size:12px;padding:14px}
+</style>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1f4e79">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+</head>
+<body>
+<header><h1>Chemistry Lab Calculator</h1><p>Analytical chemistry formulas, tools and periodic table. Works offline.</p></header>
+<main><nav id="nav"></nav><div id="box"></div></main>
+<footer>Use consistent units (mL, g, mol/L). For lists, separate values with commas, spaces or new lines. Results are saved on this device only (History tab).</footer>
+<script>
+const sum=a=>a.reduce((p,c)=>p+c,0),mean=a=>sum(a)/a.length,
+sd=a=>Math.sqrt(sum(a.map(z=>(z-mean(a))**2))/(a.length-1)),
+f=n=>String(Number(n.toPrecision(S.sf)));
+const CU="(concentration unit of the standards)";
+const cal=sig=>v=>{const x=v.x,y=v.y,n=x.length;
+ if(n!=y.length)throw Error(`${n} concentrations but ${y.length} ${sig} values`);
+ if(n<3)throw Error("Use at least 3 standards");
+ const xm=mean(x),ym=mean(y),sxx=sum(x.map(a=>(a-xm)**2));
+ if(!sxx)throw Error("All concentrations are the same");
+ const m=sum(x.map((a,i)=>(a-xm)*(y[i]-ym)))/sxx,b=ym-m*xm,
+ ssr=sum(x.map((a,i)=>(y[i]-m*a-b)**2)),sst=sum(y.map(a=>(a-ym)**2)),sr=Math.sqrt(ssr/(n-2));
+ if(!m)throw Error("Slope is zero, cannot calculate");
+ const o=[`y = ${f(m)} x + ${f(b)}`,`R² = ${sst?f(1-ssr/sst):"n/a"}`,
+ `LOD (3.3 s/slope) = ${f(3.3*sr/m)} ${CU}`,`LOQ (10 s/slope) = ${f(10*sr/m)} ${CU}`];
+ v.s.forEach(s=>o.push(`${sig} ${f(s)} -> concentration = ${f((s-b)/m*v.df)} ${CU}`+
+ (s<Math.min(...y)||s>Math.max(...y)?" (outside calibrated range)":"")));
+ o.plot={x,y,m,b,s:v.s};return o};
+const G={
+"Solutions":[
+["Molarity from mass",["mass|Mass of solute (g)","mm|Molar mass (g/mol)","v|Volume of solution (mL)"],
+ v=>{const n=v.mass/v.mm;return[`Moles = ${f(n)} mol`,`Molarity = ${f(n/(v.v/1000))} M`]}],
+["Molality from mass",["mass|Mass of solute (g)","mm|Molar mass (g/mol)","sv|Mass of solvent (g)"],
+ v=>{const n=v.mass/v.mm;return[`Moles = ${f(n)} mol`,`Molality = ${f(n/(v.sv/1000))} mol/kg`]}],
+["Mass to weigh for a required molarity",["M|Required molarity (M)","v|Required volume (mL)","mm|Molar mass (g/mol)","p|Purity of reagent (%)|100"],
+ v=>[`Weigh ${f(v.M*v.v/1000*v.mm/(v.p/100))} g of reagent (${f(v.p)}% pure)`,`Dissolve and make up to ${f(v.v)} mL`]],
+["Dilution (C1V1 = C2V2)",["c1|Stock concentration C1","c2|Required concentration C2 (same unit)","v2|Required final volume V2 (mL)"],
+ v=>{if(v.c2>v.c1)throw Error("Required concentration is higher than the stock");const v1=v.c2*v.v2/v.c1;
+ return[`Take ${f(v1)} mL of stock`,`Add ${f(v.v2-v1)} mL solvent (total ${f(v.v2)} mL)`]}],
+["Serial dilution",["c0|Starting concentration","fac|Dilution factor per step (10 = 1:10)","n|Number of steps","vol|Final volume of each tube (mL)"],
+ v=>{if(v.fac<=1)throw Error("Dilution factor must be greater than 1");if(v.n>50)throw Error("Maximum 50 steps");
+ const t=v.vol/v.fac,o=[`Each step: ${f(t)} mL of previous solution + ${f(v.vol-t)} mL diluent`];let c=v.c0;
+ for(let i=1;i<=v.n;i++){c/=v.fac;o.push(`Step ${i}: concentration = ${f(c)}`)}return o}],
+["Standard series from a stock solution",["stock|Stock concentration","vol|Final volume of each flask (mL)","*c|Required concentrations (same unit as stock)"],
+ v=>{let t=0;const o=v.c.map(c=>{if(c>v.stock)return`${f(c)}: higher than stock, cannot prepare`;
+ const s=c*v.vol/v.stock;t+=s;return`${f(c)}: take ${f(s)} mL stock, make up to ${f(v.vol)} mL`});o.push(`Total stock needed = ${f(t)} mL`);return o}],
+["Convert mol/L to ppm (mg/L)",["c|Concentration (mol/L)","mm|Molar mass (g/mol)"],v=>[`${f(v.c)} M = ${f(v.c*v.mm*1000)} ppm`]],
+["Convert ppm (mg/L) to mol/L",["c|Concentration (ppm)","mm|Molar mass (g/mol)"],v=>[`${f(v.c)} ppm = ${f(v.c/(v.mm*1000))} mol/L`]]
+],
+"Titration":[
+["Unknown concentration from titre",["a|a: coefficient of analyte|1","b|b: coefficient of titrant|1","mt|Titrant concentration (M)","vt|Titre volume (mL)","va|Volume of analyte titrated (mL)"],
+ v=>{const nt=v.mt*v.vt/1000,na=nt*v.a/v.b;return[`Moles of titrant = ${f(nt)} mol`,`Moles of analyte = ${f(na)} mol`,`Analyte concentration = ${f(na/(v.va/1000))} M`]}],
+["Mean titre, SD and RSD",["*t|Titre values (mL)"],
+ v=>{if(v.t.length<2)throw Error("Enter at least 2 titre values");const m=mean(v.t),s=sd(v.t),r=Math.max(...v.t)-Math.min(...v.t);
+ return[`Mean titre = ${f(m)} mL`,`Standard deviation = ${f(s)} mL`,`RSD = ${f(s/m*100)} %`,`Range = ${r.toFixed(2)} mL: ${r<=0.10001?"concordant (within 0.10 mL)":"NOT concordant, repeat the titration"}`]}],
+["Assay / % purity of a sample",["a|a: coefficient of analyte|1","b|b: coefficient of titrant|1","mt|Titrant concentration (M)","vt|Titre volume (mL)","mm|Molar mass of analyte (g/mol)","w|Mass of sample (g)","df|Dilution factor (total volume / aliquot, 1 if none)|1"],
+ v=>{const m=v.mt*v.vt/1000*v.a/v.b*v.mm*v.df;return[`Mass of analyte = ${f(m)} g`,`Content = ${f(m/v.w*100)} % w/w`]}],
+["Normality",["m|Molarity (M)","n|n-factor (equivalents per mole)"],v=>[`Normality = ${f(v.m*v.n)} N`]]
+],
+"UV-Vis":[
+["Beer-Lambert: find concentration",["-A|Absorbance (A)","e|Molar absorptivity (L/mol/cm)","b|Path length (cm)|1"],v=>[`Concentration = ${f(v.A/(v.e*v.b))} mol/L`]],
+["Beer-Lambert: find absorbance",["e|Molar absorptivity (L/mol/cm)","c|Concentration (mol/L)","b|Path length (cm)|1"],v=>[`Absorbance = ${f(v.e*v.b*v.c)}`]],
+["Beer-Lambert: find molar absorptivity",["-A|Absorbance (A)","c|Concentration (mol/L)","b|Path length (cm)|1"],v=>[`Molar absorptivity = ${f(v.A/(v.b*v.c))} L/(mol cm)`]],
+["%T to absorbance",["T|Percent transmittance (%T)"],v=>{if(v.T>100)throw Error("%T cannot be more than 100");return[`Absorbance = ${f(2-Math.log10(v.T))}`]}],
+["Absorbance to %T",["-A|Absorbance (A)"],v=>[`%T = ${f(100*10**(-v.A))} %`]],
+["Calibration curve, LOD/LOQ and unknowns",["*x|Standard concentrations","*y|Absorbances of standards (same order)","*s|Sample absorbances (optional)|","df|Sample dilution factor|1"],cal("Absorbance")]
+],
+"GC / HPLC":[
+["Calibration curve (peak area)",["*x|Standard concentrations","*y|Peak areas of standards (same order)","*s|Sample peak areas (optional)|","df|Sample dilution factor|1"],cal("Peak area")],
+["Internal standard method",["cas|Analyte conc. in standard","cis|Internal std conc. in standard","aas|Analyte peak area in standard","ais|Internal std peak area in standard","cis2|Internal std conc. in sample","aa|Analyte peak area in sample","ais2|Internal std peak area in sample"],
+ v=>{const rf=(v.aas/v.ais)/(v.cas/v.cis);return[`Response factor (RF) = ${f(rf)}`,`Analyte concentration in sample = ${f(v.aa/v.ais2/rf*v.cis2)} (same unit as standard)`]}],
+["Area percent (normalization)",["*a|Peak areas"],v=>{const t=sum(v.a);return v.a.map((x,i)=>`Peak ${i+1}: ${f(x/t*100)} %`).concat(`Total area = ${f(t)}`)}],
+["Retention factor (k)",["tr|Retention time tR (min)","t0|Dead time t0 (min)"],v=>{if(v.tr<=v.t0)throw Error("tR must be greater than t0");return[`k = ${f((v.tr-v.t0)/v.t0)}`]}],
+["Selectivity and resolution",["t0|Dead time t0 (min)","t1|Retention time, peak 1 (min)","t2|Retention time, peak 2 (min)","w1|Base width, peak 1 (min)","w2|Base width, peak 2 (min)"],
+ v=>{if(v.t1<=v.t0||v.t2<=v.t0)throw Error("Retention times must be greater than t0");
+ const k1=(v.t1-v.t0)/v.t0,k2=(v.t2-v.t0)/v.t0,rs=2*Math.abs(v.t2-v.t1)/(v.w1+v.w2);
+ return[`k1 = ${f(k1)}, k2 = ${f(k2)}`,`Selectivity (α) = ${f(Math.max(k1,k2)/Math.min(k1,k2))}`,`Resolution (Rs) = ${f(rs)}: ${rs>=1.5?"baseline resolved":"not fully resolved (Rs < 1.5)"}`]}],
+["Plate number (base width)",["tr|Retention time tR","w|Peak base width (same unit)","L|Column length (mm, optional)|"],
+ v=>{const n=16*(v.tr/v.w)**2,o=[`Theoretical plates N = ${f(n)}`];if(v.L)o.push(`Plate height = ${f(v.L/n)} mm`);return o}],
+["Plate number (half-height width)",["tr|Retention time tR","w|Peak width at half height (same unit)","L|Column length (mm, optional)|"],
+ v=>{const n=5.54*(v.tr/v.w)**2,o=[`Theoretical plates N = ${f(n)}`];if(v.L)o.push(`Plate height = ${f(v.L/n)} mm`);return o}],
+["Tailing factor",["w|Peak width at 5% height, W0.05","fr|Leading edge to peak maximum at 5% height, f"],
+ v=>{const t=v.w/(2*v.fr);return[`T = ${f(t)}: ${t<=2?"acceptable (usually ≤ 2.0)":"high tailing"}`]}]
+],
+"TLC":[
+["Rf value",["front|Distance travelled by solvent front (cm)","*d|Distance travelled by each spot (cm)"],
+ v=>v.d.map((d,i)=>d>v.front?`Spot ${i+1}: distance is larger than the solvent front, check values`:`Spot ${i+1}: Rf = ${f(d/v.front)}`)]
+]};
+
+function parse(s){const[k,label,def]=s.split("|");const fl=/^[*-]/.test(k)?k[0]:"";
+ return{id:fl?k.slice(1):k,label,def,list:fl=="*",any:fl!=""}}
+function card(c){
+ const fs=c[1].map(parse),d=document.createElement("details"),
+ h=fs.map(x=>`<label>${x.label}</label>`+(x.list?`<textarea data-id="${x.id}" placeholder="${x.def===undefined?"e.g. 1, 2, 3":"optional"}"></textarea>`
+ :`<input data-id="${x.id}" inputmode="decimal" autocomplete="off" placeholder="${x.def===undefined?"":x.def===""?"optional":"default "+x.def}">`)).join("");
+ d.innerHTML=`<summary>${c[0]}${c[3]?' <small style="color:var(--mu);font-weight:normal">(advanced)</small>':""}</summary><form>${h}<button class="go">Calculate</button><div class="out"></div></form>`;
+ const out=d.querySelector(".out");
+ d.querySelector("form").onsubmit=e=>{e.preventDefault();out.className="out";
+  try{const v={};
+   fs.forEach(x=>{const raw=d.querySelector(`[data-id="${x.id}"]`).value.trim();
+    if(x.list){const a=raw?raw.split(/[\s,;]+/).filter(Boolean).map(Number):[];
+     if(!a.length&&x.def===undefined)throw Error("Fill in: "+x.label);
+     if(a.some(isNaN))throw Error("Only numbers are allowed in: "+x.label);v[x.id]=a;return}
+    if(raw===""){if(x.def===undefined)throw Error("Fill in: "+x.label);v[x.id]=x.def===""?null:Number(x.def);return}
+    const n=Number(raw);if(isNaN(n))throw Error("Please enter a number for: "+x.label);
+    if(!x.any&&n<=0)throw Error("Must be greater than zero: "+x.label);v[x.id]=n});
+   const r=c[2](v);if(r.some(z=>/NaN|Infinity/.test(z)))throw Error("Cannot calculate with these values");
+   out.innerHTML=r.join("<br>")+(r.plot?plot(r.plot):"");logRes(c[0],r)}
+  catch(err){out.className="out err";out.textContent=err.message}};
+ return d}
+const nav=document.getElementById("nav"),box=document.getElementById("box");
+function show(g){[...nav.children].forEach(b=>b.classList.toggle("on",b.textContent==g));
+ box.innerHTML="";if(g=="History")box.append(histView());else G[g].forEach(c=>box.append(card(c)))}
+
+const esc=s=>String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+function plot(p){const W=320,H=220,L=48,R=12,T=12,B=30,
+ xs=p.x.concat(p.s.map(s=>(s-p.b)/p.m)),ys=p.y.concat(p.s),
+ x0=Math.min(...xs),x1=Math.max(...xs),y0=Math.min(...ys),y1=Math.max(...ys),
+ px=a=>L+(a-x0)/((x1-x0)||1)*(W-L-R),py=a=>H-B-(a-y0)/((y1-y0)||1)*(H-T-B),
+ pt=(a,b,c)=>`<circle cx="${px(a)}" cy="${py(b)}" r="4" fill="${c}"/>`,
+ tx=(x,y,a,t)=>`<text x="${x}" y="${y}" font-size="10" text-anchor="${a}" fill="currentColor">${t}</text>`;
+ return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;max-width:420px;margin-top:8px">`+
+ `<line x1="${L}" y1="${H-B}" x2="${W-R}" y2="${H-B}" stroke="currentColor"/><line x1="${L}" y1="${T}" x2="${L}" y2="${H-B}" stroke="currentColor"/>`+
+ `<line x1="${px(x0)}" y1="${py(p.m*x0+p.b)}" x2="${px(x1)}" y2="${py(p.m*x1+p.b)}" stroke="#d9822b" stroke-width="2"/>`+
+ p.x.map((a,i)=>pt(a,p.y[i],"#1f78c8")).join("")+p.s.map(s=>pt((s-p.b)/p.m,s,"#2e9e5b")).join("")+
+ tx(L,H-14,"start",f(x0))+tx(W-R,H-14,"end",f(x1))+tx(L-4,H-B,"end",f(y0))+tx(L-4,T+8,"end",f(y1))+
+ tx((L+W-R)/2,H-2,"middle","Concentration")+`</svg><div style="font-size:12px">Blue = standards, orange = fit line, green = samples</div>`}
+const HK="chemLabHistory";
+function getH(){try{return JSON.parse(localStorage.getItem(HK))||[]}catch(e){return[]}}
+function setH(h){try{localStorage.setItem(HK,JSON.stringify(h))}catch(e){}}
+function logRes(n,r){const h=getH();h.push({t:new Date().toLocaleString(),n,r:r.join("; ")});setH(h.slice(-500))}
+const csvCell=s=>'"'+String(s).replace(/"/g,'""')+'"';
+function histView(){const all=getH(),d=document.createElement("div");
+ d.innerHTML=`<div class="hb"><button class="go" id="dl">Download CSV</button><button class="go" id="clr" style="background:#a33">Clear history</button></div>`+
+ (all.length?all.slice().reverse().map(x=>`<div class="hi"><b>${esc(x.n)}</b> <small>${esc(x.t)}</small><br>${esc(x.r)}</div>`).join(""):`<p>No results saved yet. Results appear here after you press Calculate.</p>`);
+ d.querySelector("#dl").onclick=()=>{if(!all.length)return alert("Nothing to download yet.");
+  const rows=[["Time","Calculation","Result"]].concat(all.map(x=>[x.t,x.n,x.r])),
+  blob=new Blob(["\ufeff"+rows.map(r=>r.map(csvCell).join(",")).join("\r\n")],{type:"text/csv"}),
+  a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="lab_results_history.csv";a.click()};
+ d.querySelector("#clr").onclick=()=>{if(confirm("Delete all saved results?")){setH([]);go("History")}};
+ return d}
+
+const R=8.314462618,FA=96485.33212,NAV=6.02214076e23,
+T95=[12.706,4.303,3.182,2.776,2.571,2.447,2.365,2.306,2.262,2.228,2.201,2.179,2.160,2.145,2.131,2.120,2.110,2.101,2.093,2.086,2.080,2.074,2.069,2.064,2.060,2.056,2.052,2.048,2.045,2.042];
+G["Titration"].push(
+["Water content by Karl Fischer",["v|Titrant volume consumed (mL)","tf|Titre factor F (mg water per mL)","w|Sample mass (mg)"],v=>[`Water content = ${f(v.v*v.tf/v.w*100)} % w/w`]],
+["Back titration",["c1|Concentration of excess reagent added (M)","v1|Volume of reagent added (mL)","c2|Concentration of back-titrant (M)","v2|Volume of back-titrant used (mL)","r|Moles reagent per mole back-titrant|1","s|Moles reagent per mole analyte|1","mm|Molar mass of analyte (g/mol)"],
+ v=>{const u=v.c1*v.v1-v.c2*v.v2*v.r;if(u<0)throw Error("Back-titrant used is more than the reagent added, check values");const n=u/v.s/1000;return[`Moles of analyte = ${f(n)} mol`,`Mass of analyte = ${f(n*v.mm)} g`]}],
+["Water hardness by EDTA titration",["c|EDTA concentration (M)","v|EDTA volume (mL)","vs|Sample volume (mL)"],v=>[`Hardness = ${f(v.c*v.v*100.0869*1000/v.vs)} mg/L as CaCO3`]]);
+G["UV-Vis"].push(
+["Standard addition method",["*x|Added concentrations (0 for the unspiked sample)","*y|Measured signals (same order)"],
+ v=>{const x=v.x,y=v.y,n=x.length;if(n!=y.length||n<3)throw Error("Enter at least 3 matching x and y values");
+ const xm=mean(x),ym=mean(y),sxx=sum(x.map(a=>(a-xm)**2)),m=sum(x.map((a,i)=>(a-xm)*(y[i]-ym)))/sxx,b=ym-m*xm,
+ ssr=sum(x.map((a,i)=>(y[i]-m*a-b)**2)),sst=sum(y.map(a=>(a-ym)**2));if(!m)throw Error("Slope is zero");
+ return[`y = ${f(m)} x + ${f(b)}`,`R² = ${sst?f(1-ssr/sst):"n/a"}`,`Unknown concentration = ${f(Math.abs(b/m))} (same unit as the added standard)`]}],
+["Wavelength, frequency and energy",["l|Wavelength (nm)"],v=>{const nu=2.99792458e17/v.l,E=6.62607015e-34*nu;return[`Frequency = ${f(nu)} Hz`,`Wavenumber = ${f(1e7/v.l)} cm-1`,`Energy = ${f(E)} J = ${f(E/1.602176634e-19)} eV`]}]);
+G["GC / HPLC"].push(
+["Linear velocity of mobile phase",["L|Column length (cm)","t0|Dead time (s)"],v=>[`u = L / t0 = ${f(v.L/v.t0)} cm/s`]],
+["Kovats retention index (GC)",["tx|Adjusted tR of analyte","tn|Adjusted tR of alkane (n carbons)","tn1|Adjusted tR of alkane (n+1 carbons)","n|Carbon number n"],
+ v=>[`I = ${f(100*(v.n+(Math.log10(v.tx)-Math.log10(v.tn))/(Math.log10(v.tn1)-Math.log10(v.tn))))}`]],
+["Resolution from N, alpha and k (Purnell)",["n|Plate number N","al|Selectivity alpha","k|Retention factor k of second peak"],v=>[`Rs = ${f(Math.sqrt(v.n)/4*((v.al-1)/v.al)*(v.k/(1+v.k)))}`]],
+["Mobile phase preparation",["v|Total volume (mL)","p|Organic solvent (% v/v)"],v=>[`Organic solvent: ${f(v.v*v.p/100)} mL`,`Aqueous phase: ${f(v.v-v.v*v.p/100)} mL`,"Measure each volume separately, then mix."]]);
+G["TLC"].push(["Relative Rf (Rx)",["d|Distance travelled by spot (cm)","ds|Distance travelled by reference compound (cm)"],v=>[`Rx = ${f(v.d/v.ds)}`]]);
+Object.assign(G,{
+"Statistics":[
+["Descriptive statistics (mean, SD, RSD, SEM)",["*x|Values"],v=>{const x=v.x,n=x.length;if(n<2)throw Error("Enter at least 2 values");const m=mean(x),s=sd(x),o=[...x].sort((a,b)=>a-b);
+ return[`n = ${n}`,`Mean = ${f(m)}`,`SD = ${f(s)}`,`RSD = ${f(s/m*100)} %`,`SEM = ${f(s/Math.sqrt(n))}`,`Median = ${f(n%2?o[(n-1)/2]:(o[n/2-1]+o[n/2])/2)}`,`Min = ${f(o[0])}, Max = ${f(o[n-1])}`]}],
+["95% confidence interval of the mean",["*x|Values"],v=>{const x=v.x,n=x.length;if(n<2)throw Error("Enter at least 2 values");const m=mean(x),t=n-1<=30?T95[n-2]:1.96,h=t*sd(x)/Math.sqrt(n);
+ return[`Mean = ${f(m)}`,`t (95%, df ${n-1}) = ${t}`,`CI = ${f(m)} ± ${f(h)} (${f(m-h)} to ${f(m+h)})`]}],
+["Percent error and relative error",["-m|Measured value","-t|True value"],v=>[`Absolute error = ${f(v.m-v.t)}`,`Relative error = ${f((v.m-v.t)/v.t*100)} %`]],
+["Percent recovery (spiked sample)",["sp|Found in spiked sample","un|Found in unspiked sample (0 if none)|0","ad|Amount added"],v=>[`Recovery = ${f((v.sp-v.un)/v.ad*100)} %`]],
+["Q-test for an outlier (95%)",["*x|Values (3 to 10)"],v=>{const x=[...v.x].sort((a,b)=>a-b),n=x.length;if(n<3||n>10)throw Error("Use 3 to 10 values");const r=x[n-1]-x[0];if(!r)throw Error("All values are equal");
+ const lo=x[1]-x[0],hi=x[n-1]-x[n-2],q=Math.max(lo,hi)/r,qc=[0.970,0.829,0.710,0.625,0.568,0.526,0.493,0.466][n-3];
+ return[`Suspect value = ${f(lo>hi?x[0]:x[n-1])}`,`Q = ${f(q)}, Q critical = ${qc}`,q>qc?"Q > Q critical: the value can be rejected as an outlier":"Q <= Q critical: keep the value"]}],
+["LOD and LOQ from blank readings",["*b|Blank readings","m|Calibration slope"],v=>{if(v.b.length<2)throw Error("Enter at least 2 blank readings");const s=sd(v.b);return[`SD of blank = ${f(s)}`,`LOD = 3.3 s / slope = ${f(3.3*s/v.m)}`,`LOQ = 10 s / slope = ${f(10*s/v.m)}`]}],
+["Error propagation for a and b",["a|Value a","sa|Uncertainty of a","b|Value b","sb|Uncertainty of b"],v=>{const rel=Math.hypot(v.sa/v.a,v.sb/v.b),p=v.a*v.b,q=v.a/v.b;
+ return[`a + b = ${f(v.a+v.b)} ± ${f(Math.hypot(v.sa,v.sb))}`,`a x b = ${f(p)} ± ${f(p*rel)}`,`a / b = ${f(q)} ± ${f(q*rel)}`]}]],
+"Pharma and Gravimetry":[
+["Gravimetric factor",["a|Moles of analyte in the balanced ratio (a)|1","b|Moles of precipitate in the balanced ratio (b)|1","ma|Molar mass of analyte (g/mol)","mp|Molar mass of precipitate (g/mol)"],v=>[`GF = (a x M analyte) / (b x M precipitate) = ${f(v.a*v.ma/(v.b*v.mp))}`]],
+["Percent analyte by gravimetry",["wp|Mass of precipitate (g)","gf|Gravimetric factor","ws|Mass of sample (g)"],v=>[`Analyte = ${f(v.wp*v.gf)} g`,`Content = ${f(v.wp*v.gf/v.ws*100)} %`]],
+["Percent of label claim (assay)",["fd|Amount found (mg)","lb|Label claim (mg)"],v=>{const p=v.fd/v.lb*100;return[`${f(p)} % of label claim`,p>=90&&p<=110?"Within 90.0 - 110.0 % (common tablet limit)":"Outside 90.0 - 110.0 %"]}],
+["Dissolution: percent drug released",["a|Sample absorbance","as|Standard absorbance","cs|Standard concentration (mg/mL)","v|Dissolution medium volume (mL)","lc|Label claim (mg)"],v=>[`Drug released = ${f(v.a/v.as*v.cs*v.v/v.lc*100)} %`]],
+["Tablet weight variation",["*w|Individual tablet weights (mg)"],v=>{const w=v.w;if(w.length<2)throw Error("Enter at least 2 weights");const m=mean(w),d=w.map(x=>(x-m)/m*100);
+ return[`Average weight = ${f(m)} mg`,`Maximum + deviation = ${f(Math.max(...d))} %`,`Maximum - deviation = ${f(Math.min(...d))} %`,`RSD = ${f(sd(w)/m*100)} %`,"USP limits: ±10 % (130 mg or less), ±7.5 % (130 to 324 mg), ±5 % (more than 324 mg)"]}],
+["Loss on drying (LOD %)",["w1|Initial mass (g)","w2|Dried mass (g)"],v=>[`Loss on drying = ${f((v.w1-v.w2)/v.w1*100)} %`]],
+["Dose by body weight",["d|Dose (mg/kg)","bw|Body weight (kg)","c|Drug concentration (mg/mL)"],v=>[`Total dose = ${f(v.d*v.bw)} mg`,`Volume to give = ${f(v.d*v.bw/v.c)} mL`]],
+["Acid value (oils and fats)",["v|Volume of KOH (mL)","n|Normality of KOH (N)","w|Sample mass (g)"],v=>[`Acid value = ${f(56.11*v.v*v.n/v.w)} mg KOH/g`]],
+["Saponification value",["b|Blank titre (mL)","s|Sample titre (mL)","n|Normality of HCl (N)","w|Sample mass (g)"],v=>[`Saponification value = ${f(56.11*(v.b-v.s)*v.n/v.w)} mg KOH/g`]]],
+"Acid-Base and Equilibrium":[
+["pH and pOH from [H+]",["h|[H+] (mol/L)"],v=>[`pH = ${f(-Math.log10(v.h))}`,`pOH = ${f(14+Math.log10(v.h))} (at 25 °C)`]],
+["[H+] and [OH-] from pH",["-ph|pH"],v=>[`[H+] = ${f(10**-v.ph)} mol/L`,`[OH-] = ${f(10**(v.ph-14))} mol/L`]],
+["pH of a weak acid",["ka|Ka","c|Concentration (M)"],v=>{const x=(-v.ka+Math.sqrt(v.ka**2+4*v.ka*v.c))/2;return[`[H+] = ${f(x)} M`,`pH = ${f(-Math.log10(x))}`,`Ionization = ${f(x/v.c*100)} %`]}],
+["pH of a weak base",["kb|Kb","c|Concentration (M)"],v=>{const x=(-v.kb+Math.sqrt(v.kb**2+4*v.kb*v.c))/2;return[`[OH-] = ${f(x)} M`,`pOH = ${f(-Math.log10(x))}`,`pH = ${f(14+Math.log10(x))}`]}],
+["Henderson-Hasselbalch (buffer pH)",["-pka|pKa","a|Conjugate base [A-] concentration","ha|Acid [HA] concentration"],v=>[`pH = ${f(v.pka+Math.log10(v.a/v.ha))}`]],
+["Buffer preparation",["-ph|Target pH","-pka|pKa","c|Total buffer concentration (M)","v|Volume (mL)"],v=>{const r=10**(v.ph-v.pka),ha=v.c*v.v/(1+r);return[`Acid (HA): ${f(ha)} mmol`,`Conjugate base (A-): ${f(v.c*v.v-ha)} mmol`,`Ratio [A-]/[HA] = ${f(r)}`]}],
+["Solubility from Ksp",["ksp|Ksp","a|Cations per formula unit","b|Anions per formula unit"],v=>[`Molar solubility = ${f((v.ksp/(v.a**v.a*v.b**v.b))**(1/(v.a+v.b)))} mol/L`]],
+["Ionic strength",["*c|Ion concentrations (M)","*z|Ion charges (same order, e.g. 1, -1, 2)"],v=>{if(v.c.length!=v.z.length)throw Error("Enter the same number of concentrations and charges");return[`I = ${f(0.5*sum(v.c.map((c,i)=>c*v.z[i]**2)))} M`]}]],
+"Electrochemistry":[
+["Nernst equation",["-e0|Standard potential E0 (V)","n|Electrons transferred","q|Reaction quotient Q","T|Temperature (K)|298.15"],v=>[`E = ${f(v.e0-R*v.T/(v.n*FA)*Math.log(v.q))} V`]],
+["Standard cell potential",["-ec|E0 of cathode (V)","-ea|E0 of anode (V)"],v=>{const e=v.ec-v.ea;return[`E0 cell = ${f(e)} V`,e>0?"Spontaneous (galvanic) cell":"Not spontaneous"]}],
+["Gibbs energy from cell potential",["-e|Cell potential E (V)","n|Electrons transferred"],v=>[`ΔG = -nFE = ${f(-v.n*FA*v.e/1000)} kJ/mol`]],
+["Equilibrium constant from E0",["-e0|E0 cell (V)","n|Electrons transferred","T|Temperature (K)|298.15"],v=>[`log K = ${f(v.n*FA*v.e0/(R*v.T)/Math.LN10)}`]],
+["Electrolysis mass (Faraday, Q = It)",["i|Current (A)","t|Time (s)","mm|Molar mass (g/mol)","n|Electrons per ion","eta|Current efficiency (fraction)|1"],v=>{const q=v.i*v.t;return[`Charge Q = ${f(q)} C`,`Moles of electrons = ${f(q/FA)} mol`,`Mass deposited = ${f(v.eta*q*v.mm/(v.n*FA))} g`]}],
+["Conductivity and molar conductivity",["g|Conductance G (S)","k|Cell constant (1/cm)","c|Concentration (mol/L, optional)|"],v=>{const k=v.g*v.k,o=[`Conductivity = ${f(k)} S/cm`];if(v.c)o.push(`Molar conductivity = ${f(1000*k/v.c)} S cm²/mol`);return o}],
+["Ohmic drop (iR)",["i|Current (A)","r|Resistance (ohm)"],v=>[`iR drop = ${f(v.i*v.r)} V`]]],
+"General and Physical":[
+["Moles and number of particles",["mass|Mass (g)","mm|Molar mass (g/mol)"],v=>[`Moles = ${f(v.mass/v.mm)} mol`,`Particles = ${f(v.mass/v.mm*NAV)}`]],
+["Density",["m|Mass (g)","vol|Volume (mL)"],v=>[`Density = ${f(v.m/v.vol)} g/mL`]],
+["Molarity of a stock reagent (% w/w)",["p|Assay (% w/w)","d|Density (g/mL)","mm|Molar mass (g/mol)"],v=>{const m=v.p*v.d*10/v.mm;return[`Molarity = ${f(m)} M`,`Volume for 1 L of 1 M solution = ${f(1000/m)} mL`]}],
+["Ideal gas law (pressure)",["n|Moles","T|Temperature (K)","vol|Volume (L)"],v=>{const p=v.n*0.082057366*v.T/v.vol;return[`P = ${f(p)} atm = ${f(p*101.325)} kPa`]}],
+["Temperature conversion",["-c|Temperature (°C)"],v=>[`${f(v.c+273.15)} K`,`${f(v.c*9/5+32)} °F`]]]});
+
+
+Object.assign(G,{
+"Concentration and Stoichiometry":[
+["Moles from concentration and volume (n = cV)",["c|Concentration (mol/L)","v|Volume (mL)"],v=>[`n = ${f(v.c*v.v)} mmol = ${f(v.c*v.v/1000)} mol`]],
+["Volume needed for an amount (V = n/c)",["n|Amount needed (mmol)","c|Concentration (mol/L)"],v=>[`V = ${f(v.n/v.c)} mL`]],
+["Molarity from g/L, mg/mL or % w/v",["g|Mass concentration (g/L or mg/mL, optional)|","p|OR percent w/v (g per 100 mL, optional)|","mm|Molar mass (g/mol)"],
+ v=>{const g=v.g!=null?v.g:v.p!=null?10*v.p:null;if(g==null)throw Error("Enter g/L or % w/v");return[`Molarity = ${f(g/v.mm)} mol/L (${f(g/v.mm*1000)} mmol/L)`]}],
+["Mixing solutions of the same solute",["*c|Concentrations (same unit)","*v|Volumes (same order, mL)"],
+ v=>{if(v.c.length!=v.v.length)throw Error("Enter the same number of concentrations and volumes");const V=sum(v.v);return[`Final concentration = ${f(sum(v.c.map((c,i)=>c*v.v[i]))/V)}`,`Final volume = ${f(V)} mL (assumes additive volumes)`]}],
+["Dilution factor",["c1|Stock concentration","v1|Volume of stock taken (mL)","v2|Final volume (mL)"],v=>[`DF = V2/V1 = ${f(v.v2/v.v1)}`,`Final concentration = ${f(v.c1*v.v1/v.v2)}`]],
+["Percent w/v (g per 100 mL)",["m|Mass of solute (g)","v|Final volume (mL)"],v=>[`${f(100*v.m/v.v)} % w/v`]],
+["Percent w/w",["m|Mass of solute (g)","ms|Mass of solution (g)"],v=>[`${f(100*v.m/v.ms)} % w/w`]],
+["Percent v/v",["v1|Volume of liquid solute (mL)","v|Final volume (mL)"],v=>[`${f(100*v.v1/v.v)} % v/v`]],
+["Mass needed for a % w/v solution",["p|Required % w/v","v|Final volume (mL)"],v=>[`Weigh ${f(v.p*v.v/100)} g and make up to ${f(v.v)} mL`]],
+["ppm and ppb (mass fraction)",["m|Mass of solute (mg)","ms|Mass of sample (kg)"],v=>{const p=v.m/v.ms;return[`${f(p)} ppm (mg/kg)`,`${f(p*1000)} ppb (µg/kg)`,`${f(p/10000)} %`,"In dilute water 1 ppm is about 1 mg/L (approximation)."]}],
+["Theoretical and percent yield",["n|Moles of limiting reagent","nl|Coefficient of limiting reagent|1","np|Coefficient of product|1","mm|Molar mass of product (g/mol)","act|Actual mass obtained (g, optional)|"],
+ v=>{const t=v.n*v.np/v.nl,o=[`Theoretical product = ${f(t)} mol = ${f(t*v.mm)} g`];if(v.act!=null)o.push(`Percent yield = ${f(100*v.act/(t*v.mm))} %`);return o}],
+["Limiting reagent",["na|Moles of A","a|Coefficient of A|1","nb|Moles of B","b|Coefficient of B|1"],v=>{const x=v.na/v.a,y=v.nb/v.b;return[`nA/a = ${f(x)}, nB/b = ${f(y)}`,`Limiting reagent: ${x<y?"A":y<x?"B":"neither (exact ratio)"}`]}],
+["Purity (%)",["m|Mass of analyte (g)","ms|Mass of sample (g)"],v=>[`Purity = ${f(100*v.m/v.ms)} %`]],
+["Unit converter (mass, volume, amount)",["-x|Value"],v=>[`${f(v.x)} g = ${f(v.x*1e3)} mg = ${f(v.x*1e6)} µg`,`${f(v.x)} L = ${f(v.x*1e3)} mL = ${f(v.x*1e6)} µL`,`${f(v.x)} mol = ${f(v.x*1e3)} mmol = ${f(v.x*1e6)} µmol`,"1 mg/L = 1 µg/mL; 1 g/L = 1 mg/mL"]],
+["Mole fraction (several components)",["*n|Moles of each component"],v=>{const t=sum(v.n);return v.n.map((n,i)=>`Component ${i+1}: x = ${f(n/t)}`)}],
+["Equivalent mass and equivalents",["mm|Molar mass (g/mol)","z|z (equivalents per mole, reaction defined)","n|Amount (mol, optional)|"],v=>{const o=[`Equivalent mass = ${f(v.mm/v.z)} g/eq`];if(v.n!=null)o.push(`Equivalents = ${f(v.n*v.z)} eq`);return o}],
+["Percent composition of an element",["me|Mass of the element in one formula unit (g/mol)","mf|Formula mass (g/mol)"],v=>[`${f(100*v.me/v.mf)} %`]]],
+"Kinetics and Stability":[
+["First-order kinetics (C at time t, half-life)",["k|Rate constant k (1/time)","c0|Initial concentration C0","t|Time"],v=>[`C(t) = ${f(v.c0*Math.exp(-v.k*v.t))} (${f(100*Math.exp(-v.k*v.t))} % remaining)`,`Half-life = ${f(Math.LN2/v.k)}`,`t90 = ${f(-Math.log(0.9)/v.k)}`,"Kinetic estimates are not a labeled shelf life."]],
+["First-order rate constant from two measurements",["c0|Initial concentration","ct|Concentration at time t","t|Time"],v=>{const k=Math.log(v.c0/v.ct)/v.t;return[`k = ${f(k)} (1/time)`,`Half-life = ${f(Math.LN2/k)}`,`t90 = ${f(-Math.log(0.9)/k)}`]}],
+["Percent remaining and change from initial",["c0|Initial value C0","ct|Value at time t"],v=>[`Remaining = ${f(100*v.ct/v.c0)} %`,`Change from initial = ${f(100*(v.ct-v.c0)/v.c0)} %`]],
+["Zero-order kinetics",["k|Rate constant k (conc/time)","c0|Initial concentration C0","t|Time"],v=>[`C(t) = ${f(Math.max(0,v.c0-v.k*v.t))}`,`Half-life = C0/2k = ${f(v.c0/(2*v.k))}`]],
+["Second-order kinetics (one reactant)",["k|Rate constant k","c0|Initial concentration C0","t|Time"],v=>[`C(t) = ${f(1/(1/v.c0+v.k*v.t))}`,`Half-life = 1/(k C0) = ${f(1/(v.k*v.c0))}`]],
+["Arrhenius: k at a new temperature",["k1|Rate constant k1","t1|Temperature T1 (K)","t2|Temperature T2 (K)","ea|Activation energy Ea (kJ/mol)"],v=>[`k2 = ${f(v.k1*Math.exp(-v.ea*1000/R*(1/v.t2-1/v.t1)))}`]],
+["Arrhenius: activation energy from two rate constants",["k1|Rate constant k1","t1|Temperature T1 (K)","k2|Rate constant k2","t2|Temperature T2 (K)"],v=>[`Ea = ${f(R*Math.log(v.k2/v.k1)/(1/v.t1-1/v.t2)/1000)} kJ/mol`]],
+["Q10 temperature coefficient",["k1|Rate constant at T1","-t1|T1 (°C)","-t2|T2 (°C)","q|Q10 value|2"],v=>[`k2 = ${f(v.k1*v.q**((v.t2-v.t1)/10))}`]]]});
+G["Solutions"].push(["Molecular weight from mass and molarity",["m|Mass (g)","c|Concentration (mol/L)","v|Volume (mL)"],v=>[`MW = ${f(v.m/(v.c*v.v/1000))} g/mol`]]);
+G["Titration"].push(["Analyte mass from titre with blank (mg)",["c|Titrant concentration (M)","v|Titre volume (mL)","vb|Blank volume (mL)|0","mm|Molar mass of analyte (g/mol)","r|Moles analyte per mole titrant|1","tf|Titrant factor|1"],
+ v=>{const d=v.v-v.vb;if(d<=0)throw Error("Blank is larger than the titre");return[`Corrected titre = ${f(d)} mL`,`Analyte = ${f(v.c*d*v.mm*v.r*v.tf)} mg`]}]);
+G["Acid-Base and Equilibrium"].push(
+["Ka, pKa and Kb conversion",["ka|Ka"],v=>[`pKa = ${f(-Math.log10(v.ka))}`,`Kb (conjugate base) = Kw/Ka = ${f(1e-14/v.ka)}`,`pKb = ${f(14+Math.log10(v.ka))}`]],
+["Weak acid pH (approximation)",["ka|Ka","c|Concentration (M)"],v=>{const x=Math.sqrt(v.ka*v.c),p=x/v.c*100;return[`[H+] = ${f(x)} M`,`pH = ${f(-Math.log10(x))}`,`x/C = ${f(p)} %: ${p<5?"approximation is valid (< 5 %)":"too large, use the exact weak acid calculator"}`]}],
+["Buffer pH after adding strong acid or base",["-pka|pKa","ha|Acid HA (mmol)","a|Conjugate base A- (mmol)","-n|Strong base added (mmol), negative for acid"],
+ v=>{const ha=v.ha-v.n,a=v.a+v.n;if(ha<=0||a<=0)throw Error("A buffer component is used up, use full equilibrium");return[`HA = ${f(ha)} mmol, A- = ${f(a)} mmol`,`pH = ${f(v.pka+Math.log10(a/ha))}`]}],
+["Buffer capacity (beta)",["c|Total buffer concentration (M)","ka|Ka","-ph|pH"],v=>{const h=10**-v.ph;return[`β = ${f(2.303*v.c*v.ka*h/(v.ka+h)**2)} mol/L per pH unit`]}],
+["Ksp from molar solubility",["s|Molar solubility (mol/L)","a|Cations per formula unit","b|Anions per formula unit"],v=>[`Ksp = ${f((v.a*v.s)**v.a*(v.b*v.s)**v.b)}`]]);
+G["UV-Vis"].push(
+["Absorbance from I0 and I",["i0|Incident intensity I0","i|Transmitted intensity I"],v=>[`T = ${f(v.i/v.i0)} (${f(100*v.i/v.i0)} %T)`,`A = log10(I0/I) = ${f(Math.log10(v.i0/v.i))}`]],
+["Concentration from a line (y = a + bx)",["-a|Intercept a","-b|Slope b","-y|Measured response y","df|Dilution factor|1"],v=>{const x=(v.y-v.a)/v.b;return[`Measured concentration = ${f(x)}`,`Original concentration = ${f(x*v.df)}`]}],
+["Single-point external standard",["ru|Response of sample","rs|Response of standard","cs|Concentration of standard","ms|Standard mass factor|1","mu|Sample mass factor|1","vu|Sample volume factor|1","vs|Standard volume factor|1","ps|Standard potency (fraction)|1","pu|Sample potency (fraction)|1"],
+ v=>[`Cu = Cs (Ru/Rs)(ms/mu)(Vu/Vs)(Ps/Pu) = ${f(v.cs*v.ru/v.rs*v.ms/v.mu*v.vu/v.vs*v.ps/v.pu)}`]]);
+G["GC / HPLC"].push(
+["% assay by external standard",["au|Sample peak area","as|Standard peak area","cs|Standard concentration","cu|Nominal sample concentration (same unit)","ps|Standard purity (%)|100"],v=>[`Assay = ${f(v.au/v.as*v.cs/v.cu*v.ps)} %`]],
+["Resolution from half-height widths",["t1|tR of peak 1","t2|tR of peak 2","w1|Width at half height, peak 1","w2|Width at half height, peak 2"],v=>[`Rs = 1.18 (tR2 - tR1)/(w1 + w2) = ${f(1.18*(v.t2-v.t1)/(v.w1+v.w2))}`]]);
+G["Electrochemistry"].push(
+["pH from electrode potential",["-e|Measured potential E (mV)","-a|Intercept a (mV)","-s|Slope S (mV per pH)"],v=>[`pH = (E - a)/S = ${f((v.e-v.a)/v.s)}`,`Slope = ${f(Math.abs(v.s)/59.16*100)} % of the ideal 59.16 mV/pH`]],
+["Resistivity from conductivity",["k|Conductivity κ (S/cm)"],v=>[`ρ = 1/κ = ${f(1/v.k)} ohm cm`]],
+["Ion-selective electrode (ideal response)",["-e0|Constant E0 (V)","-z|Ion charge z (negative for anions)","a|Ion activity (mol/L)","T|Temperature (K)|298.15"],v=>[`E = ${f(v.e0+R*v.T/(v.z*FA)*Math.log(v.a))} V`]]);
+G["Statistics"].push(
+["Bias and percent bias",["-m|Mean result","-r|Reference value"],v=>[`Bias = ${f(v.m-v.r)}`,`% Bias = ${f(100*(v.m-v.r)/v.r)} %`]],
+["LOD and LOQ from sigma and slope (ICH)",["sg|Response SD (sigma)","s|Calibration slope S"],v=>[`LOD = 3.3 σ/S = ${f(3.3*v.sg/v.s)}`,`LOQ = 10 σ/S = ${f(10*v.sg/v.s)}`]]);
+G["Pharma and Gravimetry"].push(
+["Reference material weight (potency correction)",["m|Target active mass (mg)","p|Potency (%)"],v=>[`Weigh ${f(v.m/(v.p/100))} mg of reference material`]],
+["Dry-basis amount",["a|As-is amount","w|Water content or LOD (%)"],v=>[`Dry-basis amount = ${f(v.a/(1-v.w/100))}`]],
+["Content uniformity: acceptance value (reference formula)",["*x|Unit contents (% of label claim)","m|Reference value M (%) from current USP","k|Constant k from current USP"],
+ v=>{if(v.x.length<2)throw Error("Enter at least 2 units");const m=mean(v.x),s=sd(v.x);return[`Mean = ${f(m)} %, SD = ${f(s)}`,`AV = |M - mean| + k s = ${f(Math.abs(v.m-m)+v.k*s)}`,"Take M, k, L1 and the stage rules from the current USP <905>."]}],
+["Dissolution with aliquot replacement",["ct|Concentration at time t (mg/mL)","v|Vessel volume (mL)","vs|Aliquot volume withdrawn (mL)","*pr|Concentrations of earlier aliquots (optional)|","lc|Label claim (mg)"],
+ v=>{const mt=v.ct*v.v+v.vs*sum(v.pr);return[`Cumulative amount = ${f(mt)} mg`,`Dissolved = ${f(mt/v.lc*100)} %`]}]);
+G["General and Physical"].push(["Moles of gas (n = PV/RT)",["p|Pressure (atm)","vol|Volume (L)","T|Temperature (K)"],v=>[`n = ${f(v.p*v.vol/(0.082057366*v.T))} mol`]]);
+["Solutions","Concentration and Stoichiometry","Titration","Acid-Base and Equilibrium","UV-Vis","GC / HPLC","TLC","Pharma and Gravimetry","Statistics","Electrochemistry","Kinetics and Stability","General and Physical"].forEach(k=>{const t=G[k];delete G[k];G[k]=t});
+const ADV=["Kovats retention index (GC)","Resolution from N, alpha and k (Purnell)","Q-test for an outlier (95%)","Error propagation for a and b","Ionic strength","Solubility from Ksp","Standard addition method","Internal standard method","Back titration","Equilibrium constant from E0","Gibbs energy from cell potential","Mole fraction (several components)","Equivalent mass and equivalents","Buffer capacity (beta)","Ksp from molar solubility","Single-point external standard","Resolution from half-height widths","Ion-selective electrode (ideal response)","Arrhenius: activation energy from two rate constants","Q10 temperature coefficient","Content uniformity: acceptance value (reference formula)","Dissolution with aliquot replacement"];
+Object.values(G).forEach(a=>a.forEach(c=>{if(ADV.includes(c[0]))c[3]=1}));
+const IC={"Solutions":"🧪","Titration":"⚗️","UV-Vis":"🌈","GC / HPLC":"📈","TLC":"🧫","Statistics":"📊","Pharma and Gravimetry":"💊","Acid-Base and Equilibrium":"🧮","Electrochemistry":"⚡","General and Physical":"⚖️","Concentration and Stoichiometry":"🔢","Kinetics and Stability":"⏱️"};
+let S={sf:6,th:"auto"};try{Object.assign(S,JSON.parse(localStorage.getItem("chemSet")))}catch(e){}
+const saveS=()=>{try{localStorage.setItem("chemSet",JSON.stringify(S))}catch(e){}},
+applyTh=()=>S.th=="auto"?document.documentElement.removeAttribute("data-theme"):document.documentElement.dataset.theme=S.th;
+applyTh();
+
+const E=[0].concat("Hydrogen,H,1.008;Helium,He,4.0026;Lithium,Li,6.94;Beryllium,Be,9.0122;Boron,B,10.81;Carbon,C,12.011;Nitrogen,N,14.007;Oxygen,O,15.999;Fluorine,F,18.998;Neon,Ne,20.180;Sodium,Na,22.990;Magnesium,Mg,24.305;Aluminium,Al,26.982;Silicon,Si,28.085;Phosphorus,P,30.974;Sulfur,S,32.06;Chlorine,Cl,35.45;Argon,Ar,39.948;Potassium,K,39.098;Calcium,Ca,40.078;Scandium,Sc,44.956;Titanium,Ti,47.867;Vanadium,V,50.942;Chromium,Cr,51.996;Manganese,Mn,54.938;Iron,Fe,55.845;Cobalt,Co,58.933;Nickel,Ni,58.693;Copper,Cu,63.546;Zinc,Zn,65.38;Gallium,Ga,69.723;Germanium,Ge,72.630;Arsenic,As,74.922;Selenium,Se,78.971;Bromine,Br,79.904;Krypton,Kr,83.798;Rubidium,Rb,85.468;Strontium,Sr,87.62;Yttrium,Y,88.906;Zirconium,Zr,91.224;Niobium,Nb,92.906;Molybdenum,Mo,95.95;Technetium,Tc,98;Ruthenium,Ru,101.07;Rhodium,Rh,102.91;Palladium,Pd,106.42;Silver,Ag,107.87;Cadmium,Cd,112.41;Indium,In,114.82;Tin,Sn,118.71;Antimony,Sb,121.76;Tellurium,Te,127.60;Iodine,I,126.90;Xenon,Xe,131.29;Caesium,Cs,132.91;Barium,Ba,137.33;Lanthanum,La,138.91;Cerium,Ce,140.12;Praseodymium,Pr,140.91;Neodymium,Nd,144.24;Promethium,Pm,145;Samarium,Sm,150.36;Europium,Eu,151.96;Gadolinium,Gd,157.25;Terbium,Tb,158.93;Dysprosium,Dy,162.50;Holmium,Ho,164.93;Erbium,Er,167.26;Thulium,Tm,168.93;Ytterbium,Yb,173.05;Lutetium,Lu,174.97;Hafnium,Hf,178.49;Tantalum,Ta,180.95;Tungsten,W,183.84;Rhenium,Re,186.21;Osmium,Os,190.23;Iridium,Ir,192.22;Platinum,Pt,195.08;Gold,Au,196.97;Mercury,Hg,200.59;Thallium,Tl,204.38;Lead,Pb,207.2;Bismuth,Bi,208.98;Polonium,Po,209;Astatine,At,210;Radon,Rn,222;Francium,Fr,223;Radium,Ra,226;Actinium,Ac,227;Thorium,Th,232.04;Protactinium,Pa,231.04;Uranium,U,238.03;Neptunium,Np,237;Plutonium,Pu,244;Americium,Am,243;Curium,Cm,247;Berkelium,Bk,247;Californium,Cf,251;Einsteinium,Es,252;Fermium,Fm,257;Mendelevium,Md,258;Nobelium,No,259;Lawrencium,Lr,266;Rutherfordium,Rf,267;Dubnium,Db,268;Seaborgium,Sg,269;Bohrium,Bh,270;Hassium,Hs,277;Meitnerium,Mt,278;Darmstadtium,Ds,281;Roentgenium,Rg,282;Copernicium,Cn,285;Nihonium,Nh,286;Flerovium,Fl,289;Moscovium,Mc,290;Livermorium,Lv,293;Tennessine,Ts,294;Oganesson,Og,294".split(";").map(x=>x.split(",")));
+const ORD="1s2s2p3s3p4s3d4p5s4d5p6s4f5d6p7s5f6d7p".match(/\d[spdf]/g),CAP={s:2,p:6,d:10,f:14},
+EX={24:"3d5 4s1",29:"3d10 4s1",41:"4d4 5s1",42:"4d5 5s1",44:"4d7 5s1",45:"4d8 5s1",46:"4d10",47:"4d10 5s1",57:"5d1 6s2",58:"4f1 5d1 6s2",64:"4f7 5d1 6s2",78:"4f14 5d9 6s1",79:"4f14 5d10 6s1",89:"6d1 7s2",90:"6d2 7s2",91:"5f2 6d1 7s2",92:"5f3 6d1 7s2",93:"5f4 6d1 7s2",96:"5f7 6d1 7s2",103:"5f14 7s2 7p1"},
+CT=["Alkali metal","Alkaline earth metal","Transition metal","Post-transition metal","Metalloid","Nonmetal","Halogen","Noble gas","Lanthanide","Actinide"],
+NG=[2,10,18,36,54,86,118],HAL=[9,17,35,53,85,117],MET=[5,14,32,33,51,52],NM=[1,6,7,8,15,16,34],PT=[13,31,49,50,81,82,83,84,113,114,115,116];
+function fill(z){let r=z;const o=[];for(const s of ORD){if(r<=0)break;const n=Math.min(r,CAP[s[1]]);o.push([s,n]);r-=n}return o}
+function config(z){const c=[[86,"Rn"],[54,"Xe"],[36,"Kr"],[18,"Ar"],[10,"Ne"],[2,"He"]].find(k=>k[0]<z);
+ if(!c)return fill(z).map(x=>x.join("")).join(" ");const core=fill(c[0]).map(x=>x[0]);
+ return`[${c[1]}] `+(EX[z]||fill(z).filter(x=>!core.includes(x[0])).map(x=>x.join("")).join(" "))}
+function pos(z){if(z==1)return[1,1];if(z==2)return[1,18];if(z<=4)return[2,z-2];if(z<=10)return[2,z+8];if(z<=12)return[3,z-10];if(z<=18)return[3,z];
+ if(z<=36)return[4,z-18];if(z<=54)return[5,z-36];if(z<=56)return[6,z-54];if(z<=71)return[8,z-54];if(z<=86)return[6,z-68];if(z<=88)return[7,z-86];if(z<=103)return[9,z-86];return[7,z-100]}
+const fz=z=>z>=57&&z<=71||z>=89&&z<=103,per=z=>z<=2?1:z<=10?2:z<=18?3:z<=36?4:z<=54?5:z<=86?6:7,grp=z=>fz(z)?0:pos(z)[1],
+blk=z=>fz(z)?"f":z==2?"s":pos(z)[1]<=2?"s":pos(z)[1]>=13?"p":"d";
+function cat(z){if(NG.includes(z))return"Noble gas";if(HAL.includes(z))return"Halogen";if(z>=57&&z<=71)return"Lanthanide";if(z>=89&&z<=103)return"Actinide";
+ if(MET.includes(z))return"Metalloid";if(NM.includes(z))return"Nonmetal";if(PT.includes(z))return"Post-transition metal";const c=pos(z)[1];return c==1?"Alkali metal":c==2?"Alkaline earth metal":"Transition metal"}
+
+function ptable(){const d=document.createElement("div");
+ d.innerHTML=`<div class="bar"><button class="bk">‹ Home</button><h2>Periodic Table</h2></div><input class="sr" placeholder="Search name, symbol or atomic number...">
+ <select class="sr"></select><div class="det">Tap an element to see its details.</div><div class="ptw"><div class="pt"></div></div>`;
+ const sr=d.querySelector("input"),pf=d.querySelector("select"),det=d.querySelector(".det"),pt=d.querySelector(".pt"),T=[];
+ [["","Highlight: all elements"]].concat(CT.map(c=>["c:"+c,c]),["s","p","d","f"].map(b=>["b:"+b,b+"-block"]),[1,2,3,4,5,6,7].map(p=>["p:"+p,"Period "+p]),
+ Array.from({length:18},(_,i)=>["g:"+(i+1),"Group "+(i+1)])).forEach(o=>pf.append(new Option(o[1],o[0])));
+ const info=z=>{const e=E[z],rad=z==43||z==61||z>=84&&![90,91,92].includes(z);
+  det.innerHTML=`<h3>${e[0]} (${e[1]})</h3><table>`+[["Atomic number",z],["Atomic mass (u)",e[2]],["Mass number (nearest)",Math.round(e[2])+(rad?" (longest-lived isotope)":"")],
+  ["Electron configuration",config(z)],["Group",grp(z)||"— (f-block)"],["Period",per(z)],["Block",blk(z)+"-block"],["Category",cat(z)]].map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td></tr>`).join("")+"</table>"};
+ for(let z=1;z<=118;z++){const[r,c]=pos(z),t=document.createElement("div");t.className="el";
+  t.style.cssText=`grid-row:${fz(z)?r+1:r};grid-column:${c};background:hsl(${CT.indexOf(cat(z))*36} 60% 76%)`;
+  t.innerHTML=`<small>${z}</small><b>${E[z][1]}</b>`;t.onclick=()=>info(z);pt.append(t);T[z]=t}
+ [[6,"57-71"],[7,"89-103"]].forEach(a=>{const t=document.createElement("div");t.className="el ph";t.style.cssText=`grid-row:${a[0]};grid-column:3`;t.textContent=a[1];pt.append(t)});
+ const upd=()=>{const q=sr.value.trim().toLowerCase(),[k,vv]=(pf.value||":").split(":"),hit=[];
+  for(let z=1;z<=118;z++){const e=E[z],a=!q||e[0].toLowerCase().includes(q)||e[1].toLowerCase()==q||String(z)==q,
+   b=!k||(k=="c"?cat(z)==vv:k=="b"?blk(z)==vv:k=="p"?per(z)==+vv:grp(z)==+vv);T[z].style.opacity=a&&b?1:.15;if(q&&a)hit.push(z)}
+  if(hit.length==1)info(hit[0])};
+ sr.oninput=upd;pf.onchange=upd;d.querySelector(".bk").onclick=()=>go("Home");box.append(d)}
+
+function home(){const d=document.createElement("div");
+ d.innerHTML=`<input class="sr" placeholder="Search every formula: molarity, Nernst, LOD, recovery..."><div class="grid"></div><div id="res"></div>`;
+ const gr=d.querySelector(".grid"),res=d.querySelector("#res"),gs=d.querySelector("input");
+ const tile=(i,t,s,fn)=>{const b=document.createElement("button");b.className="tile";b.innerHTML=`<span>${i}</span><b>${t}</b><small>${s}</small>`;b.onclick=fn;gr.append(b)};
+ Object.keys(G).forEach(g=>tile(IC[g]||"🧪",g,G[g].length+" calculators",()=>go(g)));
+ tile("⚛️","Periodic Table","118 elements",()=>go("Periodic"));
+ gs.oninput=()=>{const q=gs.value.trim().toLowerCase();res.innerHTML="";gr.style.display=q?"none":"";if(!q)return;
+  Object.keys(G).forEach(g=>G[g].forEach(c=>{if((c[0]+" "+g).toLowerCase().includes(q))res.append(card(c))}));if(!res.children.length)res.textContent="No formula found."};
+ box.append(d)}
+
+function section(g){const d=document.createElement("div"),l=document.createElement("div");
+ d.innerHTML=`<div class="bar"><button class="bk">‹ Home</button><h2>${g}</h2></div><input class="sr" placeholder="Search in ${g}...">`;
+ G[g].slice().sort((a,b)=>(a[3]||0)-(b[3]||0)).forEach(c=>l.append(card(c)));d.append(l);d.querySelector(".bk").onclick=()=>go("Home");
+ d.querySelector("input").oninput=e=>{const q=e.target.value.toLowerCase();[...l.children].forEach(x=>x.style.display=x.firstChild.textContent.toLowerCase().includes(q)?"":"none")};box.append(d)}
+
+function settings(){const d=document.createElement("div");
+ d.innerHTML=`<div class="bar"><button class="bk">‹ Home</button><h2>Settings</h2></div>
+ <label>Theme</label><select class="sr" id="th"><option value="auto">Automatic</option><option value="light">Light</option><option value="dark">Dark</option></select>
+ <label>Significant figures in results</label><select class="sr" id="sf">${[3,4,5,6,7,8].map(n=>`<option>${n}</option>`).join("")}</select>
+ <label>Saved results</label><button class="go" id="cl" style="background:#a33">Clear history</button>
+ <p style="color:var(--mu);font-size:13px">Chemistry Lab Calculator v2. Works offline. Your data stays on this device.</p>`;
+ const th=d.querySelector("#th"),sf=d.querySelector("#sf");th.value=S.th;sf.value=S.sf;
+ th.onchange=()=>{S.th=th.value;saveS();applyTh()};sf.onchange=()=>{S.sf=+sf.value;saveS()};
+ d.querySelector("#cl").onclick=()=>{if(confirm("Delete all saved results?"))setH([])};
+ d.querySelector(".bk").onclick=()=>go("Home");box.append(d)}
+
+function go(v){[...nav.children].forEach(b=>b.classList.toggle("on",b.dataset.v==v||(v in G&&b.dataset.v=="Home")));box.innerHTML="";window.scrollTo(0,0);
+ if(v=="Home")home();else if(v=="Periodic")ptable();else if(v=="History")box.append(histView());else if(v=="Settings")settings();else section(v)}
+[["Home","🏠"],["Periodic","⚛️"],["History","🕘"],["Settings","⚙️"]].forEach(a=>{const b=document.createElement("button");b.dataset.v=a[0];b.innerHTML=a[1]+"<br>"+a[0];b.onclick=()=>go(a[0]);nav.append(b)});
+go("Home");
+
+</script>
+<script>if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{})</script>
+</body>
+</html>
